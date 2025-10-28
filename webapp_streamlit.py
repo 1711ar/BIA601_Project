@@ -40,7 +40,7 @@ def safe_read_uploaded(uploaded_file) -> pd.DataFrame:
                 continue
     return pd.read_excel(io.BytesIO(raw))
 
-# ---- Upload & Preview ----
+# Upload & Preview
 st.subheader("Upload & Preview")
 file = st.file_uploader("Upload CSV/XLSX", type=["csv", "xlsx", "xls"])
 if file is None:
@@ -65,5 +65,63 @@ if not num_cols:
 default_idx = num_cols.index("Strength") if "Strength" in num_cols else 0
 target_col = st.selectbox("Target column (y)", options=num_cols, index=default_idx)
 
+
+# ===== Run Genetic Algorithm =====
 st.divider()
-st.write("Run GA button will be added in the next PR. Baselines tab comes later.")
+run = st.button("Run GA", type="primary")
+
+if run:
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from sklearn.linear_model import Ridge
+    from sklearn.model_selection import KFold, cross_val_predict
+    from ga_feature_select import GeneticFeatureSelector
+
+    # X = numeric features (excluding target), y = target
+    X_full = df.drop(columns=[target_col]).select_dtypes(include=["number"])
+    y = df[target_col].values
+
+    if X_full.shape[1] < 2:
+        st.error("Need at least 2 numeric features besides the target.")
+        st.stop()
+
+    # For now we always use Ridge regardless of 'regressor' choice (kept simple for this PR)
+    selector = GeneticFeatureSelector(
+        estimator=Ridge(),
+        population=int(population),
+        generations=int(generations),
+        crossover_rate=float(crossover),
+        mutation_rate=float(mutation),
+        lam=float(lam),
+        cv=int(cv_folds),
+        random_state=int(seed),
+    )
+    selector.fit(X_full.values, y)
+
+    mask = selector.get_support()
+    selected_cols = list(X_full.columns[mask])
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("GA (raw CV)", f"{selector.best_score_raw_:.4f}")
+    c2.metric("GA (penalized)", f"{selector.best_score_pen_:.4f}")
+    c3.metric("Selected", f"{mask.sum()}/{X_full.shape[1]}")
+
+    with st.expander("Selected features"):
+        st.write(", ".join(selected_cols) if selected_cols else "No features selected")
+
+    # Predicted vs True using GA subset
+    kf = KFold(n_splits=int(cv_folds), shuffle=True, random_state=int(seed))
+    est = Ridge()
+    X_sel = X_full[selected_cols].values if selected_cols else X_full.values
+    y_pred = cross_val_predict(est, X_sel, y, cv=kf)
+
+    fig, ax = plt.subplots()
+    ax.scatter(y, y_pred, alpha=0.6)
+    mn, mx = float(np.min(y)), float(np.max(y))
+    ax.plot([mn, mx], [mn, mx], "k--", linewidth=1)
+    ax.set_xlabel("True")
+    ax.set_ylabel("Predicted")
+    ax.set_title("Predicted vs True (GA subset)")
+    st.pyplot(fig)
+else:
+    st.info("Set GA parameters (left), choose target, then click Run GA.")
