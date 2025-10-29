@@ -9,6 +9,6 @@
 - عرض النتائج (CV score، عدد الميزات) وتنزيل البيانات المختزلة.
 - تنفيذ سريع وإعدادات قابلة للتحكم من الواجهة.
  التشغيل محليا (Windows / Linux / macOS)
-bash
+```bash
 pip install -r requirements.txt
 streamlit run webapp_streamlit.py
