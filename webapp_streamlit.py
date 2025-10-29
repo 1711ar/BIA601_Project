@@ -65,12 +65,12 @@ if not num_cols:
 default_idx = num_cols.index("Strength") if "Strength" in num_cols else 0
 target_col = st.selectbox("Target column (y)", options=num_cols, index=default_idx)
 
-
 # ===== Run Genetic Algorithm =====
 st.divider()
 run = st.button("Run GA", type="primary")
 
 if run:
+    import io, json
     import numpy as np
     import matplotlib.pyplot as plt
     from sklearn.linear_model import Ridge
@@ -85,7 +85,6 @@ if run:
         st.error("Need at least 2 numeric features besides the target.")
         st.stop()
 
-    # For now we always use Ridge regardless of 'regressor' choice (kept simple for this PR)
     selector = GeneticFeatureSelector(
         estimator=Ridge(),
         population=int(population),
@@ -101,27 +100,66 @@ if run:
     mask = selector.get_support()
     selected_cols = list(X_full.columns[mask])
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("GA (raw CV)", f"{selector.best_score_raw_:.4f}")
-    c2.metric("GA (penalized)", f"{selector.best_score_pen_:.4f}")
-    c3.metric("Selected", f"{mask.sum()}/{X_full.shape[1]}")
-
-    with st.expander("Selected features"):
-        st.write(", ".join(selected_cols) if selected_cols else "No features selected")
-
-    # Predicted vs True using GA subset
     kf = KFold(n_splits=int(cv_folds), shuffle=True, random_state=int(seed))
     est = Ridge()
     X_sel = X_full[selected_cols].values if selected_cols else X_full.values
     y_pred = cross_val_predict(est, X_sel, y, cv=kf)
 
-    fig, ax = plt.subplots()
-    ax.scatter(y, y_pred, alpha=0.6)
-    mn, mx = float(np.min(y)), float(np.max(y))
-    ax.plot([mn, mx], [mn, mx], "k--", linewidth=1)
-    ax.set_xlabel("True")
-    ax.set_ylabel("Predicted")
-    ax.set_title("Predicted vs True (GA subset)")
-    st.pyplot(fig)
+    tab_results, tab_selected, tab_baselines, tab_logs = st.tabs(
+        ["Results", "Selected", "Baselines", "Logs"]
+    )
+
+    with tab_results:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("GA (raw CV)", f"{selector.best_score_raw_:.4f}")
+        c2.metric("GA (penalized)", f"{selector.best_score_pen_:.4f}")
+        c3.metric("Selected", f"{mask.sum()}/{X_full.shape[1]}")
+
+        fig, ax = plt.subplots()
+        ax.scatter(y, y_pred, alpha=0.6)
+        mn, mx = float(np.min(y)), float(np.max(y))
+        ax.plot([mn, mx], [mn, mx], "k--", linewidth=1)
+        ax.set_xlabel("True"); ax.set_ylabel("Predicted")
+        ax.set_title("Predicted vs True (GA subset)")
+        st.pyplot(fig)
+
+        # Download: predictions.csv
+        import pandas as pd
+        pred_df = pd.DataFrame({"y_true": y, "y_pred": y_pred})
+        buf = io.StringIO(); pred_df.to_csv(buf, index=False)
+        st.download_button("Download predictions.csv", buf.getvalue().encode("utf-8"),
+                           file_name="predictions.csv", mime="text/csv")
+
+    with tab_selected:
+        st.subheader("Selected features")
+        if selected_cols:
+            st.write(", ".join(selected_cols))
+            # Download: selected_features.csv
+            sel_df = pd.DataFrame({"feature": selected_cols})
+            buf2 = io.StringIO(); sel_df.to_csv(buf2, index=False)
+            st.download_button("Download selected_features.csv", buf2.getvalue().encode("utf-8"),
+                               file_name="selected_features.csv", mime="text/csv")
+        else:
+            st.info("No features selected")
+
+        # Download: boolean mask (JSON)
+        mask_json = json.dumps({col: bool(m) for col, m in zip(X_full.columns, mask.tolist())}, ensure_ascii=False)
+        st.download_button("Download feature_mask.json", mask_json.encode("utf-8"),
+                           file_name="feature_mask.json", mime="application/json")
+
+    with tab_baselines:
+        st.info("Baselines (BASE / PCA / SelectKBest) will be added in a later PR.")
+
+    with tab_logs:
+        hist = getattr(selector, "history_", None)
+        if hist:
+            log_df = pd.DataFrame([{"gen": h.gen, "best_raw": h.best_raw,
+                                    "best_pen": h.best_pen, "k": h.k} for h in hist])
+            st.dataframe(log_df, use_container_width=True)
+            buf3 = io.StringIO(); log_df.to_csv(buf3, index=False)
+            st.download_button("Download ga_history.csv", buf3.getvalue().encode("utf-8"),
+                               file_name="ga_history.csv", mime="text/csv")
+        else:
+            st.info("No GA history available.")
 else:
     st.info("Set GA parameters (left), choose target, then click Run GA.")
