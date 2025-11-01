@@ -10,7 +10,7 @@ from ga_feature_select import GeneticFeatureSelector
 
 print(" جاري تحميل البيانات وتشغيل التجربة...\n")
 
-#  تحميل بيانات iris الجاهزة
+#  تحميل بيانات الجاهزة
 iris = load_iris()
 X = iris.data
 y = iris.target
