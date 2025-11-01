@@ -10,9 +10,7 @@ from sklearn.feature_selection import SelectKBest, f_classif
 from sklearn.metrics import accuracy_score
 from ga_feature_select import GeneticFeatureSelector
 import warnings
-
 warnings.filterwarnings("ignore")
-
 # تحميل البيانات 
 iris = load_iris()
 X = iris.data
@@ -25,7 +23,6 @@ Xtr, Xte, ytr, yte = train_test_split(
 
 #  النموذج الأساسي 
 base_est = make_pipeline(StandardScaler(), LogisticRegression(max_iter=300))
-
 
 #  الخوارزمية الجينية
 print(" Running Genetic Algorithm Feature Selection...")
@@ -73,7 +70,6 @@ base_est.fit(Xtr_skb, ytr)
 yhat_skb = base_est.predict(Xte_skb)
 acc_skb = accuracy_score(yte, yhat_skb)
 
-
 # مقارنة النتائج النهائية
 print("\n===============================================")
 print(" Comparison of Feature Selection Methods")
@@ -111,7 +107,6 @@ for bar in bars:
         fontweight="bold",
     )
 
-# إبراز العمود الأعلى
 max_index = np.argmax(scores)
 bars[max_index].set_color("#e74c3c")
 
