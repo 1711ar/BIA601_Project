@@ -12,7 +12,6 @@ from ga_feature_select import GeneticFeatureSelector
 import warnings
 
 warnings.filterwarnings("ignore")
-
 # تحميل البيانات 
 iris = load_iris()
 X = iris.data
@@ -27,7 +26,9 @@ Xtr, Xte, ytr, yte = train_test_split(
 base_est = make_pipeline(StandardScaler(), LogisticRegression(max_iter=300))
 
 
-#  الخوارزمية الجينية
+# ===============================
+# الطريقة 1: الخوارزمية الجينية (Genetic Algorithm)
+# ===============================
 print(" Running Genetic Algorithm Feature Selection...")
 ga_selector = GeneticFeatureSelector(
     estimator=base_est,
@@ -50,7 +51,9 @@ yhat_ga = base_est.predict(Xte_ga)
 acc_ga = accuracy_score(yte, yhat_ga)
 selected_features = ga_selector.best_mask_.sum()
 
-# تحليل المكونات الرئيسية 
+# ===============================
+# الطريقة 2: تحليل المكونات الرئيسية (PCA)
+# ===============================
 print(" Running PCA Feature Extraction...")
 n_pca = min(2, X.shape[1])
 pca = PCA(n_components=n_pca, random_state=42)
@@ -61,8 +64,9 @@ base_est.fit(Xtr_pca, ytr)
 yhat_pca = base_est.predict(Xte_pca)
 acc_pca = accuracy_score(yte, yhat_pca)
 
-
+# ===============================
 # الطريقة 3: اختبار F-Statistic (SelectKBest)
+# ===============================# الطريقة 3: اختبار F-Statistic (SelectKBest)
 print(" Running SelectKBest (F-Test)...")
 k_val = min(2, X.shape[1])
 skb = SelectKBest(score_func=f_classif, k=k_val)
@@ -82,7 +86,6 @@ print(f"Genetic Algorithm: {acc_ga:.4f} (Selected {selected_features}/{X.shape[1
 print(f"PCA:               {acc_pca:.4f} (Top {n_pca} components)")
 print(f"SelectKBest:       {acc_skb:.4f} (Top {k_val} features)")
 print("===============================================")
-
 
 #  رسم النتائج بيانياً (Bar Chart)
 methods = ["Genetic Algorithm", "PCA", "SelectKBest"]
@@ -110,8 +113,7 @@ for bar in bars:
         fontsize=11,
         fontweight="bold",
     )
-
-# إبراز العمود الأعلى
+    
 max_index = np.argmax(scores)
 bars[max_index].set_color("#e74c3c")
 
