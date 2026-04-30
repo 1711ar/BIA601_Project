@@ -20,9 +20,8 @@ class GeneticFeatureSelector:
     task: TaskT = "auto"  
     n_jobs: int = 1     
 
-    # ------------- helpers -------------
+
     def _infer_task(self, y) -> TaskT:
-        """يختار نوع المهمة تلقائياً إذا task='auto'."""
         if self.task in ("clf", "reg"):
             return self.task
         y_arr = np.asarray(y)
@@ -52,7 +51,6 @@ class GeneticFeatureSelector:
         penalty = self.lambda_penalty * (mask.sum() / X.shape[1])  
         return float(scores.mean() - penalty)
 
-    # ------------- API -------------
     def fit(self, X: np.ndarray, y: np.ndarray):
         rng = np.random.default_rng(self.random_state)
         task = self._infer_task(y)
@@ -92,7 +90,6 @@ class GeneticFeatureSelector:
             mut = rng.random(children.shape) < self.mutation_prob
             children ^= mut
 
-            # ثبّت الأفضل (elitism)
             if best_mask is not None:
                 children[0] = best_mask
 
